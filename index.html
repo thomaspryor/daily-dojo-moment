@@ -547,7 +547,7 @@
         }
         resultHtml = `<div class="card"><div class="options">${opts}</div></div>`;
       } else if (act === "question") {
-        resultHtml = `<div class="card" style="text-align:center"><div class="question-text" style="font-size:16px">"${kidAns}"</div></div>`;
+        resultHtml = `<div class="card" style="text-align:center"><div class="question-text" style="font-size:16px">"${esc(kidAns)}"</div></div>`;
       }
 
       const oldStreak = streak - 1;
@@ -652,6 +652,7 @@
 
     let vidCountdown = 15;
     let vidInterval = null;
+    function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
 
     function startVideoRecording() {
       vidCountdown = 15;
@@ -672,6 +673,7 @@
         camera.appendChild(dot); camera.appendChild(lbl);
       }
 
+      if (vidInterval) { clearInterval(vidInterval); vidInterval = null; }
       vidInterval = setInterval(() => {
         vidCountdown--;
         const el = document.getElementById("vid-timer");
@@ -925,8 +927,8 @@
       clearTimers();
       const a = getAct();
       let caption = "";
-      if (act === "wyr") caption = `Emma explains why she picked <b>${a.opts[kidAns].label}</b>`;
-      else if (act === "mood") caption = `Emma shares why she's feeling <b>${a.moods[kidAns].label}</b>`;
+      if (act === "wyr") caption = `Emma explains why she picked <b>${esc(a.opts[kidAns].label)}</b>`;
+      else if (act === "mood") caption = `Emma shares why she's feeling <b>${esc(a.moods[kidAns].label)}</b>`;
       else caption = `Emma explains her answer`;
 
       render(`
@@ -1365,8 +1367,8 @@
       const s = STEPS[wStep];
       document.getElementById("wtext").textContent = s.text;
       document.getElementById("wsub").textContent = s.sub;
-      const dots = document.getElementById("wdots"); dots.innerHTML = "";
-      for(let i=0;i<STEPS.length;i++){const d=document.createElement("div");d.className="wdot"+(i===wStep?" on":"");dots.appendChild(d);}
+      const dots = document.getElementById("wdots"); let dotHtml = "";
+      for(let i=0;i<STEPS.length;i++){dotHtml+=`<div class="wdot${i===wStep?' on':''}"></div>`;} dots.innerHTML = dotHtml;
       document.getElementById("wbar").classList.add("visible");
       s.do();
       wTimer = setTimeout(()=>{wStep++;runStep();}, s.ms||2000);
