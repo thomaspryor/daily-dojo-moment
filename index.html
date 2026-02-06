@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Daily Dojo Moment — Prototype</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&display=swap');
+    :root {
+      --grape-10: #f6eeff; --grape-20: #f0d9ff; --grape-40: #c399ff;
+      --grape-60: #7d40ff; --grape-70: #612bd4;
+      --cloud-10: #f1f3f8; --cloud-20: #e2e4f0; --cloud-30: #c8cad8;
+      --cloud-60: #5d5d8f; --cloud-90: #1a192d;
+      --frog-10: #e6fff2; --frog-20: #c7ffea; --frog-40: #46cd8f; --frog-60: #13803a;
+      --sun-10: #fff9e6; --sun-20: #fff0b3; --sun-40: #ffd633; --sun-70: #9a6d00;
+      --sky-20: #ccf0ff; --pig-40: #ff8fd0;
+      --white: #fff; --font: 'Nunito', sans-serif;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: var(--font); background: #2a2a3a; display: flex; flex-direction: column; }
+
+    /* Demo toolbar — sits OUTSIDE the phone */
+    .toolbar { display: flex; gap: 6px; padding: 8px 12px; background: #1e1e2e; width: 100%; justify-content: center; flex-shrink: 0; flex-wrap: wrap; z-index: 50; }
+    .tb { padding: 5px 12px; border-radius: 100px; border: 1.5px solid #444; background: transparent; font-family: var(--font); font-size: 11px; font-weight: 700; color: #999; cursor: pointer; transition: all 0.2s; }
+    .tb:hover { border-color: var(--grape-40); color: var(--grape-40); }
+    .tb.active { background: var(--grape-60); border-color: var(--grape-60); color: var(--white); }
+    .tb.walk { background: rgba(70,205,143,0.15); border-color: var(--frog-40); color: var(--frog-40); }
+    .tb.walk.running { background: var(--frog-60); border-color: var(--frog-60); color: var(--white); animation: pulse 1.5s infinite; }
+    .tb-sep { width: 1px; background: #444; margin: 0 2px; }
+    .tb-label { font-size: 9px; font-weight: 800; color: #777; text-transform: uppercase; letter-spacing: 0.5px; align-self: center; }
+
+    /* iPhone frame */
+    .iphone-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 12px; overflow: hidden; }
+    .iphone { width: 280px; aspect-ratio: 393 / 852; max-height: calc(100% - 8px); background: #000; border-radius: 40px; padding: 10px; box-shadow: 0 0 0 2px #555, 0 20px 60px rgba(0,0,0,0.5); display: flex; flex-direction: column; position: relative; overflow: hidden; }
+    .iphone-screen { flex: 1; background: var(--grape-10); border-radius: 32px; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    .iphone-status { display: flex; justify-content: space-between; align-items: center; padding: 8px 20px 2px; font-size: 11px; font-weight: 700; color: var(--cloud-90); flex-shrink: 0; background: var(--grape-10); z-index: 5; }
+    .iphone-status-left { display: flex; align-items: center; gap: 4px; }
+    .iphone-notch { width: 90px; height: 22px; background: #000; border-radius: 0 0 14px 14px; position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 10; }
+    .iphone-home { width: 100px; height: 4px; background: var(--cloud-90); border-radius: 3px; margin: 6px auto; opacity: 0.2; flex-shrink: 0; }
+
+    /* App content inside phone */
+    .app { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow-y: auto; overflow-x: hidden; position: relative; padding: 10px 14px; -webkit-overflow-scrolling: touch; }
+    .app::-webkit-scrollbar { display: none; }
+    .stage { width: 100%; max-width: 300px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .stage.enter { animation: stageEnter 0.35s ease-out forwards; }
+
+    .header-label { font-size: 10px; font-weight: 800; color: var(--grape-60); text-transform: uppercase; letter-spacing: 1px; text-align: center; }
+    .header-title { font-size: 20px; font-weight: 800; color: var(--cloud-90); text-align: center; margin-top: 2px; line-height: 1.2; }
+    .streak-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--sun-20); color: var(--sun-70); font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 100px; transition: all 0.3s; }
+    .streak-badge.bump { animation: streakBump 0.6s ease-out; }
+
+    .card { background: var(--white); border-radius: 18px; padding: 16px; box-shadow: 0 4px 20px rgba(26,25,45,0.08); width: 100%; }
+    .question-text { font-size: 16px; font-weight: 800; color: var(--cloud-90); text-align: center; line-height: 1.35; }
+
+    .options { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; width: 100%; }
+    .option-btn { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 14px; border: 2px solid var(--cloud-20); background: var(--white); cursor: pointer; transition: all 0.2s; text-align: left; font-family: var(--font); width: 100%; }
+    .option-btn:hover { border-color: var(--grape-40); background: var(--grape-10); transform: scale(1.01); }
+    .option-btn:active { transform: scale(0.98); }
+    .option-btn.selected { border-color: var(--grape-60); background: var(--grape-10); }
+    .option-btn.static { cursor: default; }
+    .option-btn.static:hover { transform: none; }
+    .option-emoji { font-size: 24px; line-height: 1; }
+    .option-content { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+    .option-label { font-size: 14px; font-weight: 700; color: var(--cloud-90); }
+    .result-bar-track { height: 6px; background: var(--cloud-10); border-radius: 100px; overflow: hidden; }
+    .result-bar-fill { height: 100%; border-radius: 100px; background: var(--grape-40); transition: width 0.8s cubic-bezier(0.22,1,0.36,1); width: 0; }
+    .result-bar-fill.winner { background: var(--grape-60); }
+    .result-percent { font-size: 12px; font-weight: 800; color: var(--cloud-60); min-width: 32px; text-align: right; }
+
+    .class-line { font-size: 11px; color: var(--cloud-60); text-align: center; }
+
+    /* In-app activity type segmented control */
+    .act-seg { display: flex; width: 100%; background: var(--cloud-20); border-radius: 10px; padding: 3px; gap: 0; }
+    .act-seg-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 6px 2px; border-radius: 8px; border: none; background: transparent; font-family: var(--font); font-size: 8px; font-weight: 700; color: var(--cloud-60); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .act-seg-btn:active { transform: scale(0.96); }
+    .act-seg-btn.on { background: var(--white); color: var(--cloud-90); box-shadow: 0 1px 6px rgba(26,25,45,0.12); }
+    .act-seg-emoji { font-size: 16px; line-height: 1; }
+
+    /* Big CTA */
+    .big-emoji { font-size: 44px; animation: popIn 0.5s ease-out; }
+    .big-title { font-size: 18px; font-weight: 800; color: var(--cloud-90); text-align: center; line-height: 1.3; }
+    .big-subtitle { font-size: 12px; font-weight: 500; color: var(--cloud-60); text-align: center; line-height: 1.4; max-width: 240px; }
+
+    /* Points */
+    .points-row { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+    .points-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--frog-10); color: var(--frog-60); font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 100px; border: 1.5px solid var(--frog-20); }
+    .points-badge.pop { animation: popIn 0.5s ease-out 0.3s both; }
+
+    /* Celebration sequence */
+    .celeb-streak { display: flex; flex-direction: column; align-items: center; gap: 2px; opacity: 0; transform: scale(0.5); }
+    .celeb-streak.show { animation: celebReveal 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+    .celeb-streak-fire { font-size: 36px; line-height: 1; }
+    .celeb-streak-num { font-size: 32px; font-weight: 800; color: var(--sun-70); line-height: 1; }
+    .celeb-streak-label { font-size: 11px; font-weight: 700; color: var(--cloud-60); text-transform: uppercase; letter-spacing: 1px; }
+    .celeb-streak-glow { position: absolute; width: 80px; height: 80px; border-radius: 50%; background: radial-gradient(circle, rgba(255,214,51,0.4) 0%, transparent 70%); top: 50%; left: 50%; transform: translate(-50%,-50%); opacity: 0; }
+    .celeb-streak-glow.pulse { animation: glowPulse 0.8s ease-out forwards; }
+
+    .celeb-points { display: flex; flex-direction: column; align-items: center; gap: 4px; opacity: 0; transform: scale(0.5); }
+    .celeb-points.show { animation: celebReveal 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+    .celeb-points-icon { font-size: 28px; line-height: 1; }
+    .celeb-points-num { font-size: 24px; font-weight: 800; color: var(--frog-60); line-height: 1; }
+    .celeb-points-label { font-size: 10px; font-weight: 700; color: var(--cloud-60); text-transform: uppercase; letter-spacing: 1px; }
+    .celeb-points-total { font-size: 11px; font-weight: 700; color: var(--frog-40); margin-top: -2px; }
+
+    .celeb-result { opacity: 0; transform: translateY(16px); width: 100%; }
+    .celeb-result.show { animation: slideUp 0.5s ease-out forwards; }
+
+    /* Accent card */
+    .accent-card { background: var(--grape-60); border-radius: 18px; padding: 18px 16px; text-align: center; color: var(--white); width: 100%; box-shadow: 0 6px 24px rgba(125,64,255,0.3); }
+    .accent-card-emoji { font-size: 32px; margin-bottom: 6px; }
+    .accent-card-title { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+    .accent-card-text { font-size: 11px; font-weight: 500; opacity: 0.9; line-height: 1.4; }
+
+    /* Hand-back interstitial */
+    .handback-card { background: var(--sky-20); border-radius: 18px; padding: 22px 18px; text-align: center; width: 100%; border: 2px solid #a8e4ff; }
+    .handback-emoji { font-size: 44px; margin-bottom: 8px; }
+    .handback-title { font-size: 17px; font-weight: 800; color: var(--cloud-90); margin-bottom: 5px; }
+    .handback-text { font-size: 12px; color: var(--cloud-60); line-height: 1.4; }
+
+    /* Tomorrow card */
+    .tomorrow-card { background: var(--white); border-radius: 14px; padding: 12px; text-align: center; width: 100%; border: 2px dashed var(--cloud-20); }
+    .tomorrow-label { font-size: 9px; font-weight: 800; color: var(--cloud-60); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
+    .tomorrow-text { font-size: 13px; font-weight: 700; color: var(--cloud-90); }
+    .tomorrow-sub { font-size: 11px; color: var(--cloud-60); margin-top: 2px; }
+
+    /* Convo card */
+    .convo-card { background: var(--sun-10); border-radius: 14px; padding: 14px; text-align: center; width: 100%; border: 2px solid var(--sun-20); }
+    .convo-label { font-size: 9px; font-weight: 800; color: var(--sun-70); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .convo-text { font-size: 14px; font-weight: 600; color: var(--cloud-90); line-height: 1.4; }
+
+    /* Reveal */
+    .reveal-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 12px; background: var(--cloud-10); width: 100%; opacity: 0; transform: translateX(-16px); }
+    .reveal-row.show { animation: slideInRow 0.45s ease-out forwards; }
+    .reveal-row.show-delay { animation: slideInRow 0.45s ease-out 0.35s forwards; }
+    .reveal-row.match { background: var(--frog-10); }
+    .reveal-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .reveal-avatar.kid { background: var(--sky-20); }
+    .reveal-avatar.parent { background: var(--grape-20); }
+    .reveal-name { font-size: 12px; font-weight: 700; color: var(--cloud-60); min-width: 36px; }
+    .reveal-answer { font-size: 13px; font-weight: 800; color: var(--cloud-90); flex: 1; }
+    .result-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 100px; opacity: 0; }
+    .result-badge.pop { animation: popIn 0.5s ease-out 0.8s forwards; }
+    .result-badge.match { background: var(--frog-20); color: var(--frog-60); }
+    .result-badge.miss { background: var(--sun-20); color: var(--sun-70); }
+
+    /* Mood grid */
+    .mood-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; margin-top: 10px; }
+    .mood-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 2px; border-radius: 14px; border: 2px solid var(--cloud-20); background: var(--white); cursor: pointer; transition: all 0.2s; font-family: var(--font); }
+    .mood-btn:hover { border-color: var(--grape-40); background: var(--grape-10); transform: scale(1.03); }
+    .mood-btn:active { transform: scale(0.96); }
+    .mood-emoji { font-size: 22px; }
+    .mood-label { font-size: 10px; font-weight: 700; color: var(--cloud-90); }
+
+    /* Text input */
+    .text-input { width: 100%; padding: 10px; border-radius: 14px; border: 2px solid var(--cloud-20); font-family: var(--font); font-size: 13px; color: var(--cloud-90); resize: none; outline: none; transition: border-color 0.2s; }
+    .text-input:focus { border-color: var(--grape-40); }
+    .primary-btn { width: 100%; padding: 12px; border-radius: 100px; border: none; background: var(--grape-60); color: var(--white); font-family: var(--font); font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .primary-btn:hover { background: var(--grape-70); transform: scale(1.01); }
+    .primary-btn:active { transform: scale(0.98); }
+    .secondary-btn { width: 100%; padding: 10px; border-radius: 100px; border: 2px solid var(--cloud-20); background: var(--white); color: var(--cloud-60); font-family: var(--font); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+    .secondary-btn:hover { border-color: var(--frog-40); color: var(--frog-60); }
+
+    /* In-app home feed mockup */
+    .home-feed { width: 100%; display: flex; flex-direction: column; background: var(--white); flex: 1; }
+    .home-nav { display: flex; align-items: center; padding: 6px 12px; gap: 8px; background: var(--white); border-bottom: 1px solid var(--cloud-20); flex-shrink: 0; }
+    .home-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--grape-40); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .home-nav-icon { width: 28px; height: 28px; border-radius: 8px; background: var(--cloud-10); display: flex; align-items: center; justify-content: center; font-size: 13px; }
+    .home-upgrade { margin-left: auto; padding: 4px 12px; border-radius: 100px; background: var(--grape-60); color: var(--white); font-size: 9px; font-weight: 800; border: none; }
+    .home-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--cloud-20); padding: 0 8px; flex-shrink: 0; background: var(--white); }
+    .home-tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px 5px; font-size: 8px; font-weight: 700; color: var(--cloud-60); border-bottom: 2px solid transparent; }
+    .home-tab.on { color: var(--cloud-90); border-bottom-color: var(--grape-60); }
+    .home-tab-icon { font-size: 18px; }
+    .home-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .home-scroll::-webkit-scrollbar { display: none; }
+    .feed-post { border-bottom: 1px solid var(--cloud-10); }
+    .feed-post-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
+    .feed-post-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--cloud-20); overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .feed-post-info { flex: 1; }
+    .feed-post-name { font-size: 10px; font-weight: 800; color: var(--cloud-90); }
+    .feed-post-meta { font-size: 8px; color: var(--cloud-60); }
+    .feed-post-img { width: 100%; height: 130px; background: linear-gradient(135deg, var(--cloud-10) 0%, var(--cloud-20) 100%); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .feed-post-img img { width: 100%; height: 100%; object-fit: cover; }
+    .feed-post-text { padding: 6px 12px; font-size: 9px; color: var(--cloud-90); line-height: 1.4; }
+    .feed-post-actions { display: flex; gap: 12px; padding: 4px 12px 8px; font-size: 9px; color: var(--cloud-60); font-weight: 700; }
+    .feed-post-actions span { display: flex; align-items: center; gap: 3px; }
+
+    .dm-feed-card { margin: 8px 10px; border-radius: 16px; padding: 14px; background: linear-gradient(135deg, var(--grape-10) 0%, #f0e4ff 100%); border: 2px solid var(--grape-20); cursor: pointer; transition: all 0.2s; }
+    .dm-feed-card:hover { transform: scale(1.01); border-color: var(--grape-40); }
+    .dm-feed-card:active { transform: scale(0.98); }
+    .dm-feed-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .dm-feed-icon { width: 32px; height: 32px; border-radius: 10px; background: var(--grape-60); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--white); font-weight: 800; }
+    .dm-feed-label { flex: 1; }
+    .dm-feed-label-title { font-size: 10px; font-weight: 800; color: var(--grape-60); }
+    .dm-feed-label-sub { font-size: 8px; color: var(--cloud-60); }
+    .dm-feed-streak { font-size: 9px; font-weight: 700; color: var(--sun-70); background: var(--sun-20); padding: 2px 8px; border-radius: 100px; }
+    .dm-feed-q { font-size: 13px; font-weight: 800; color: var(--cloud-90); text-align: center; margin-bottom: 8px; }
+    .dm-feed-opts { display: flex; gap: 6px; }
+    .dm-feed-opt { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 8px; border-radius: 12px; background: var(--white); border: 1.5px solid var(--cloud-20); font-size: 11px; font-weight: 700; color: var(--cloud-90); }
+    .dm-feed-cta { text-align: center; margin-top: 8px; font-size: 10px; font-weight: 700; color: var(--grape-60); }
+
+    .home-bottom-bar { display: flex; border-top: 1px solid var(--cloud-20); padding: 4px 0 2px; background: var(--white); flex-shrink: 0; }
+    .home-btab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 7px; font-weight: 700; color: var(--cloud-60); padding: 2px 0; }
+    .home-btab.on { color: var(--grape-60); }
+    .home-btab-icon { font-size: 16px; }
+
+    /* Phone notification (for the notif mockup view) */
+    .phone-frame-notif { background: var(--cloud-90); border-radius: 28px; padding: 12px; width: 100%; box-shadow: 0 6px 30px rgba(26,25,45,0.25); }
+    .phone-screen-notif { background: #1a192d; border-radius: 20px; overflow: hidden; }
+    .phone-status-notif { display: flex; justify-content: space-between; padding: 8px 16px 4px; font-size: 12px; font-weight: 700; color: var(--white); }
+    .phone-wallpaper-notif { height: 140px; background: linear-gradient(160deg, #2d1b69 0%, #1a192d 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .phone-clock-notif { font-size: 48px; font-weight: 800; color: var(--white); }
+    .phone-date-notif { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+    .phone-notif-area { padding: 12px; }
+    .notif-banner { background: rgba(255,255,255,0.95); border-radius: 14px; padding: 12px; display: flex; gap: 10px; align-items: flex-start; backdrop-filter: blur(20px); transition: all 0.3s ease-out; }
+    .notif-icon { width: 36px; height: 36px; border-radius: 9px; background: var(--grape-60); display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; color: var(--white); font-weight: 800; }
+    .notif-content { flex: 1; }
+    .notif-app { font-size: 11px; font-weight: 800; color: var(--cloud-60); }
+    .notif-text { font-size: 13px; font-weight: 600; color: var(--cloud-90); margin-top: 2px; line-height: 1.3; }
+    .notif-time { font-size: 11px; color: var(--cloud-60); margin-top: 3px; }
+
+    /* Walkthrough */
+    .walkthrough-bar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(26,25,45,0.95); color: var(--white); padding: 16px 20px; text-align: center; z-index: 200; transform: translateY(100%); transition: transform 0.3s ease-out; backdrop-filter: blur(12px); }
+    .walkthrough-bar.visible { transform: translateY(0); }
+    .walkthrough-text { font-size: 15px; font-weight: 700; line-height: 1.3; }
+    .walkthrough-sub { font-size: 12px; color: var(--cloud-30); margin-top: 3px; }
+    .walkthrough-dots { display: flex; gap: 4px; justify-content: center; margin-top: 10px; }
+    .wdot { width: 7px; height: 7px; border-radius: 50%; background: var(--cloud-60); transition: all 0.3s; }
+    .wdot.on { background: var(--grape-40); width: 20px; border-radius: 4px; }
+
+    /* Student app (kid in-app view) */
+    .stu-feed { width: 100%; display: flex; flex-direction: column; background: #f5f6fa; flex: 1; }
+    .stu-header { display: flex; align-items: center; padding: 8px 12px; background: var(--white); border-bottom: 1px solid var(--cloud-20); flex-shrink: 0; gap: 6px; }
+    .stu-logo { width: 28px; height: 28px; border-radius: 8px; background: var(--grape-60); display: flex; align-items: center; justify-content: center; color: var(--white); font-size: 14px; font-weight: 800; }
+    .stu-header-spacer { flex: 1; }
+    .stu-toggle { display: flex; background: var(--cloud-10); border-radius: 8px; padding: 2px; gap: 2px; }
+    .stu-toggle-btn { display: flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 6px; border: none; background: transparent; font-family: var(--font); font-size: 9px; font-weight: 700; color: var(--cloud-60); cursor: pointer; transition: all 0.15s; }
+    .stu-toggle-btn.on { background: var(--cloud-90); color: var(--white); }
+    .stu-toggle-icon { font-size: 12px; }
+    .stu-avatar-wrap { width: 28px; height: 28px; border-radius: 50%; background: var(--sky-20); display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .stu-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+    .stu-scroll::-webkit-scrollbar { display: none; }
+
+    .stu-points-card { background: var(--white); border-radius: 14px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; box-shadow: 0 1px 4px rgba(26,25,45,0.06); }
+    .stu-points-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--sky-20); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .stu-points-info { flex: 1; }
+    .stu-points-name { font-size: 11px; font-weight: 800; color: var(--cloud-90); }
+    .stu-points-sub { font-size: 9px; color: var(--cloud-60); }
+    .stu-points-badge { display: flex; align-items: center; gap: 3px; background: var(--frog-10); color: var(--frog-60); font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 100px; }
+
+    .stu-dm-card { border-radius: 16px; padding: 14px; background: linear-gradient(135deg, var(--grape-10) 0%, #ede4ff 100%); border: 2px solid var(--grape-20); cursor: pointer; transition: all 0.2s; }
+    .stu-dm-card:hover { transform: scale(1.01); border-color: var(--grape-40); }
+    .stu-dm-card:active { transform: scale(0.98); }
+    .stu-dm-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .stu-dm-icon { width: 32px; height: 32px; border-radius: 10px; background: var(--grape-60); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--white); font-weight: 800; }
+    .stu-dm-label { flex: 1; }
+    .stu-dm-label-title { font-size: 11px; font-weight: 800; color: var(--grape-60); }
+    .stu-dm-label-sub { font-size: 8px; color: var(--cloud-60); }
+    .stu-dm-streak { font-size: 9px; font-weight: 700; color: var(--sun-70); background: var(--sun-20); padding: 2px 8px; border-radius: 100px; }
+    .stu-dm-q { font-size: 14px; font-weight: 800; color: var(--cloud-90); text-align: center; margin-bottom: 8px; line-height: 1.3; }
+    .stu-dm-opts { display: flex; gap: 6px; }
+    .stu-dm-opt { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 10px 6px; border-radius: 12px; background: var(--white); border: 1.5px solid var(--cloud-20); font-size: 12px; font-weight: 700; color: var(--cloud-90); }
+    .stu-dm-cta { text-align: center; margin-top: 8px; font-size: 10px; font-weight: 700; color: var(--grape-60); }
+
+    .stu-post { background: var(--white); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 4px rgba(26,25,45,0.06); }
+    .stu-post-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+    .stu-post-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--cloud-20); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .stu-post-info { flex: 1; }
+    .stu-post-name { font-size: 10px; font-weight: 800; color: var(--cloud-90); }
+    .stu-post-meta { font-size: 8px; color: var(--cloud-60); }
+    .stu-post-img { width: 100%; height: 100px; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+    .stu-post-text { padding: 8px 12px; font-size: 9px; color: var(--cloud-90); line-height: 1.4; }
+    .stu-post-actions { display: flex; gap: 12px; padding: 4px 12px 8px; font-size: 9px; color: var(--cloud-60); font-weight: 700; }
+    .stu-post-actions span { display: flex; align-items: center; gap: 3px; }
+
+    /* Video recording UI */
+    .vid-prompt { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; }
+    .vid-prompt-text { font-size: 14px; font-weight: 700; color: var(--cloud-90); text-align: center; }
+    .vid-prompt-sub { font-size: 11px; color: var(--cloud-60); text-align: center; }
+    .vid-record-btn { width: 100%; padding: 12px; border-radius: 100px; border: none; background: #e53935; color: var(--white); font-family: var(--font); font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .vid-record-btn:hover { background: #c62828; transform: scale(1.01); }
+    .vid-record-btn:active { transform: scale(0.98); }
+    .vid-skip-btn { background: transparent; border: none; font-family: var(--font); font-size: 12px; font-weight: 600; color: var(--cloud-60); cursor: pointer; padding: 8px; }
+    .vid-skip-btn:hover { color: var(--cloud-90); }
+
+    .vid-camera { width: 100%; border-radius: 18px; overflow: hidden; position: relative; background: #1a192d; aspect-ratio: 4/3; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .vid-camera-bg { position: absolute; inset: 0; background: linear-gradient(135deg, #2d1b69 0%, #1a192d 50%, #13803a 100%); opacity: 0.8; }
+    .vid-camera-face { position: relative; z-index: 2; font-size: 64px; filter: blur(0); }
+    .vid-camera-label { position: relative; z-index: 2; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.7); margin-top: 4px; }
+    .vid-rec-dot { width: 10px; height: 10px; border-radius: 50%; background: #e53935; position: absolute; top: 12px; left: 12px; z-index: 3; animation: recBlink 1s infinite; }
+    .vid-rec-label { position: absolute; top: 10px; left: 28px; z-index: 3; font-size: 11px; font-weight: 800; color: #e53935; }
+    .vid-timer { position: absolute; top: 10px; right: 12px; z-index: 3; font-size: 14px; font-weight: 800; color: var(--white); background: rgba(0,0,0,0.5); padding: 2px 10px; border-radius: 100px; }
+    .vid-timer-ring { position: absolute; bottom: 16px; z-index: 3; }
+    .vid-prompt-overlay { position: absolute; top: 0; left: 0; right: 0; padding: 40px 16px 0; z-index: 4; text-align: center; transition: opacity 0.3s; }
+    .vid-prompt-overlay-text { font-size: 15px; font-weight: 800; color: var(--white); text-shadow: 0 2px 8px rgba(0,0,0,0.5); line-height: 1.3; }
+    .vid-record-circle { width: 56px; height: 56px; border-radius: 50%; border: 3px solid var(--white); background: rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+    .vid-record-circle:hover { transform: scale(1.08); }
+    .vid-record-circle:active { transform: scale(0.95); }
+    .vid-record-circle-inner { width: 42px; height: 42px; border-radius: 50%; background: #e53935; transition: all 0.2s; }
+    .vid-stop-btn { width: 44px; height: 44px; border-radius: 50%; border: 3px solid var(--white); background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; cursor: pointer; position: absolute; bottom: 12px; z-index: 3; }
+    .vid-stop-inner { width: 18px; height: 18px; border-radius: 4px; background: #e53935; }
+    .vid-progress { position: absolute; bottom: 0; left: 0; height: 4px; background: #e53935; z-index: 3; transition: width 1s linear; }
+
+    .vid-preview { width: 100%; border-radius: 18px; overflow: hidden; position: relative; background: #1a192d; aspect-ratio: 4/3; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .vid-preview-face { font-size: 64px; position: relative; z-index: 2; }
+    .vid-preview-badge { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 3; background: rgba(0,0,0,0.6); color: var(--white); font-size: 10px; font-weight: 700; padding: 4px 12px; border-radius: 100px; white-space: nowrap; }
+    .vid-preview-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 3; width: 48px; height: 48px; border-radius: 50%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid rgba(255,255,255,0.8); transition: all 0.2s; }
+    .vid-preview-play:hover { background: rgba(0,0,0,0.7); transform: translate(-50%,-50%) scale(1.1); }
+    .vid-preview-play-icon { font-size: 20px; color: var(--white); margin-left: 3px; }
+
+    .vid-sent-card { background: var(--frog-10); border-radius: 14px; padding: 14px; text-align: center; width: 100%; border: 2px solid var(--frog-20); }
+    .vid-sent-title { font-size: 13px; font-weight: 800; color: var(--frog-60); }
+    .vid-sent-sub { font-size: 11px; color: var(--cloud-60); margin-top: 2px; }
+
+    .vid-parent-card { background: var(--white); border-radius: 18px; overflow: hidden; width: 100%; box-shadow: 0 4px 20px rgba(26,25,45,0.08); }
+    .vid-parent-header { padding: 12px 14px; display: flex; align-items: center; gap: 8px; }
+    .vid-parent-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--sky-20); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .vid-parent-name { font-size: 12px; font-weight: 800; color: var(--cloud-90); }
+    .vid-parent-meta { font-size: 10px; color: var(--cloud-60); }
+    .vid-parent-body { position: relative; background: #1a192d; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; }
+    .vid-parent-face { font-size: 64px; }
+    .vid-parent-caption { padding: 12px 14px; font-size: 12px; color: var(--cloud-90); line-height: 1.4; }
+    .vid-parent-caption b { color: var(--grape-60); }
+
+    .vid-playing-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; z-index: 4; }
+    .vid-playing-wave { display: flex; align-items: center; gap: 3px; }
+    .vid-playing-bar { width: 4px; border-radius: 2px; background: var(--white); animation: audioWave 0.6s ease-in-out infinite; }
+    .vid-playing-bar:nth-child(1) { height: 12px; animation-delay: 0s; }
+    .vid-playing-bar:nth-child(2) { height: 20px; animation-delay: 0.1s; }
+    .vid-playing-bar:nth-child(3) { height: 16px; animation-delay: 0.2s; }
+    .vid-playing-bar:nth-child(4) { height: 24px; animation-delay: 0.15s; }
+    .vid-playing-bar:nth-child(5) { height: 14px; animation-delay: 0.05s; }
+
+    @keyframes recBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    @keyframes audioWave { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(0.4); } }
+
+    #confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; }
+
+    @keyframes stageEnter { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes popIn { 0% { transform: scale(0.4); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes streakBump { 0% { transform: scale(1); } 30% { transform: scale(1.3); background: var(--sun-40); } 100% { transform: scale(1); } }
+    @keyframes slideInRow { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
+    @keyframes celebReveal { 0% { opacity: 0; transform: scale(0.5); } 60% { opacity: 1; transform: scale(1.1); } 100% { opacity: 1; transform: scale(1); } }
+    @keyframes glowPulse { 0% { opacity: 0; transform: translate(-50%,-50%) scale(0.3); } 40% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-50%) scale(2.5); } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes countUp { 0% { transform: translateY(8px); opacity: 0; } 50% { transform: translateY(-3px); opacity: 1; } 100% { transform: translateY(0); opacity: 1; } }
+    @keyframes shimmer { 0% { background-position: -100% 0; } 100% { background-position: 200% 0; } }
+  </style>
+</head>
+<body>
+  <canvas id="confetti-canvas"></canvas>
+
+  <div class="walkthrough-bar" id="wbar">
+    <div class="walkthrough-text" id="wtext"></div>
+    <div class="walkthrough-sub" id="wsub"></div>
+    <div class="walkthrough-dots" id="wdots"></div>
+  </div>
+
+  <div class="toolbar">
+    <span class="tb-label">View:</span>
+    <button class="tb active" id="tab-kid" onclick="switchView('kid')">👧 Kid</button>
+    <button class="tb" id="tab-parent" onclick="switchView('parent')">👩 Parent</button>
+    <button class="tb" id="tab-notif" onclick="switchView('notification')">📱 Notif</button>
+    <button class="tb" id="tab-kidinapp" onclick="switchView('kidinapp')">🏫 Kid App</button>
+    <button class="tb" id="tab-inapp" onclick="switchView('inapp')">🏠 Parent App</button>
+    <div class="tb-sep"></div>
+    <span class="tb-label">Day:</span>
+    <button class="tb active" id="day-1" onclick="goToDay(0)">1</button>
+    <button class="tb" id="day-2" onclick="goToDay(1)">2</button>
+    <button class="tb" id="day-3" onclick="goToDay(2)">3</button>
+    <div class="tb-sep"></div>
+    <button class="tb" onclick="resetDemo()">↺</button>
+    <button class="tb walk" id="wbtn" onclick="toggleWalkthrough()">▶ Walk</button>
+  </div>
+
+  <div class="iphone-wrap">
+    <div class="iphone">
+      <div class="iphone-screen">
+        <div class="iphone-notch"></div>
+        <div class="iphone-status">
+          <span>9:41</span>
+          <span style="opacity:0">notch</span>
+          <span>📶 🔋</span>
+        </div>
+        <div class="app" id="app"></div>
+      </div>
+      <div class="iphone-home"></div>
+    </div>
+  </div>
+
+  <script>
+    // === DATA ===
+    const ACT_ORDER = ["wyr", "mood", "question"];
+    const DAYS = [
+      {
+        wyr: { q: "Would you rather be able to fly or turn invisible?", opts: [{ emoji: "🦅", label: "Fly", votes: 64 }, { emoji: "👻", label: "Turn invisible", votes: 36 }], prompt: "Ask Emma why she picked that — you might be surprised by her reason!" },
+        mood: { q: "How are you feeling today?" },
+        question: { q: "What's something that made you smile today?", prompt: "Emma shared what made her smile — ask her about it at dinner!" },
+        classmates: 15,
+      },
+      {
+        wyr: { q: "Would you rather have a pet dragon or a pet unicorn?", opts: [{ emoji: "🐉", label: "Pet dragon", votes: 52 }, { emoji: "🦄", label: "Pet unicorn", votes: 48 }], prompt: "Ask Emma what she'd name her pet — you might love her answer!" },
+        mood: { q: "How was your day at school?" },
+        question: { q: "If you could have any superpower, what would it be?", prompt: "Emma shared her dream superpower — ask her about it tonight!" },
+        classmates: 19,
+      },
+      {
+        wyr: { q: "Would you rather live underwater or in outer space?", opts: [{ emoji: "🐠", label: "Underwater", votes: 41 }, { emoji: "🚀", label: "Outer space", votes: 59 }], prompt: "Ask Emma what she'd explore first — her answer might surprise you!" },
+        mood: { q: "What's one word that describes how you feel right now?" },
+        question: { q: "What's something kind someone did for you recently?", prompt: "Emma shared a kindness moment — ask her to tell you more!" },
+        classmates: 22,
+      },
+    ];
+    const ACT_META = {
+      wyr: { title: "Would You Rather", pill: "🤔 Would You Rather", parentQ: null },
+      mood: {
+        title: "Mood Check", pill: "😊 Mood",
+        moods: [
+          { emoji: "😊", label: "Great" }, { emoji: "😌", label: "Chill" }, { emoji: "🤩", label: "Excited" },
+          { emoji: "😴", label: "Tired" }, { emoji: "😤", label: "Frustrated" }, { emoji: "🥺", label: "Sad" },
+        ],
+        prompt: "Ask Emma what made her feel that way today!",
+        parentQ: "How do you think Emma is feeling?",
+      },
+      question: { title: "Table Topic", pill: "💬 Table Topic", parentQ: null },
+    };
+    function getAct() {
+      const day = DAYS[dayIdx];
+      const m = ACT_META[act];
+      const d = day[act];
+      return { ...m, ...d };
+    }
+    const NOTIFS = [
+      "Emma answered today's Daily Dojo Moment! Can you guess what she picked? 🤔",
+      "Emma hasn't done today's Daily Dojo Moment yet. Want to nudge her? 💬",
+      "🔥 Emma kept her streak alive!",
+      "Emma is feeling 😊 Great today! Tap to see why.",
+    ];
+
+    let dayIdx = 0, act = "wyr", view = "kid";
+    let kidAns = null, parentAns = null, streak = 3, points = 22, notifIdx = 0;
+    let handedPhone = false; // true when parent handed phone to kid
+    let kidVideoRecorded = false; // true when kid recorded a video message
+    let autoTimers = [];
+
+    function clearTimers() { for (const t of autoTimers) clearTimeout(t); autoTimers = []; }
+    function later(fn, ms) { autoTimers.push(setTimeout(fn, ms)); }
+
+    function render(html) {
+      const app = document.getElementById("app");
+      app.style.padding = "10px 14px";
+      app.style.justifyContent = "center";
+      app.innerHTML = `<div class="stage enter">${html}</div>`;
+    }
+
+    const ACT_SEG_LABELS = { wyr: "Would You Rather", mood: "Mood Check", question: "Table Topic" };
+    const ACT_SEG_EMOJI = { wyr: "🤔", mood: "😊", question: "💬" };
+    function actPillsHtml() {
+      let h = '<div class="act-seg">';
+      for (const k of ACT_ORDER) {
+        h += `<button class="act-seg-btn${k===act?' on':''}" onclick="switchActivityInApp('${k}')"><span class="act-seg-emoji">${ACT_SEG_EMOJI[k]}</span>${ACT_SEG_LABELS[k]}</button>`;
+      }
+      h += '</div>';
+      return h;
+    }
+
+    // === CONFETTI ===
+    const cv = document.getElementById("confetti-canvas"), cx = cv.getContext("2d");
+    let cps = [], cActive = false;
+    function rcv() { cv.width = window.innerWidth; cv.height = window.innerHeight; }
+    window.addEventListener("resize", rcv); rcv();
+    function boom() {
+      cps = []; const cols = ["#7d40ff","#c399ff","#46cd8f","#ffd633","#ff8fd0","#80b2ff"];
+      for (let i = 0; i < 100; i++) cps.push({ x: cv.width/2+(Math.random()-.5)*160, y: cv.height*.35, vx: (Math.random()-.5)*18, vy: -Math.random()*20-6, sz: Math.random()*9+4, c: cols[Math.floor(Math.random()*cols.length)], r: Math.random()*360, rs: (Math.random()-.5)*14, g: .32+Math.random()*.2, o: 1 });
+      cActive = true; anim();
+    }
+    function anim() {
+      if (!cActive) return; cx.clearRect(0,0,cv.width,cv.height); let alive = false;
+      for (const p of cps) { p.x+=p.vx; p.vy+=p.g; p.y+=p.vy; p.r+=p.rs; p.vx*=.99; if(p.y>cv.height+20)p.o-=.04;
+        if(p.o>0){alive=true;cx.save();cx.globalAlpha=Math.max(0,p.o);cx.translate(p.x,p.y);cx.rotate(p.r*Math.PI/180);cx.fillStyle=p.c;cx.fillRect(-p.sz/2,-p.sz/4,p.sz,p.sz/2);cx.restore();}}
+      if(alive)requestAnimationFrame(anim);else{cActive=false;cx.clearRect(0,0,cv.width,cv.height);}
+    }
+
+    // ========================================
+    // KID FLOW
+    // ========================================
+    function showKidQuestion() {
+      clearTimers();
+      const a = getAct();
+      let optHtml = "";
+      if (act === "wyr") {
+        for (let i = 0; i < a.opts.length; i++)
+          optHtml += `<button class="option-btn" onclick="kidPick(${i})"><span class="option-emoji">${a.opts[i].emoji}</span><span class="option-label">${a.opts[i].label}</span></button>`;
+        optHtml = `<div class="options">${optHtml}</div>`;
+      } else if (act === "mood") {
+        let g = "";
+        for (let i = 0; i < a.moods.length; i++)
+          g += `<button class="mood-btn" onclick="kidPick(${i})"><span class="mood-emoji">${a.moods[i].emoji}</span><span class="mood-label">${a.moods[i].label}</span></button>`;
+        optHtml = `<div class="mood-grid">${g}</div>`;
+      } else {
+        optHtml = `<textarea class="text-input" id="kid-input" placeholder="Type your answer..." rows="3"></textarea>
+          <button class="primary-btn" onclick="kidSubmitText()" style="margin-top:8px">Share my answer ✨</button>`;
+      }
+      render(`
+        <div><div class="header-label">Daily Dojo Moment</div></div>
+        ${actPillsHtml()}
+        <div class="streak-badge">🔥 ${streak}-day streak</div>
+        <div class="card"><div class="question-text">${a.q}</div>${optHtml}</div>
+      `);
+    }
+
+    function kidPick(idx) {
+      if (kidAns !== null) return;
+      kidAns = idx; streak += 1; points += 2;
+      showKidResult();
+    }
+
+    function kidSubmitText() {
+      const input = document.getElementById("kid-input");
+      if (!input || !input.value.trim()) return;
+      kidAns = input.value.trim(); streak += 1; points += 2;
+      showKidResult();
+    }
+
+    function showKidResult() {
+      clearTimers();
+      const a = getAct();
+      let emoji, label;
+      if (act === "wyr") { emoji = a.opts[kidAns].emoji; label = a.opts[kidAns].label; }
+      else if (act === "mood") { emoji = a.moods[kidAns].emoji; label = a.moods[kidAns].label; }
+      else { emoji = "✍️"; label = ""; }
+
+      let resultHtml = "";
+      if (act === "wyr") {
+        const total = a.opts.reduce((s,o)=>s+o.votes,0)+1;
+        let opts = "";
+        for (let i = 0; i < a.opts.length; i++) {
+          const adj = a.opts[i].votes+(kidAns===i?1:0);
+          const pct = Math.round(adj/total*100);
+          const win = adj >= total/2;
+          opts += `<div class="option-btn static" style="border-color:${kidAns===i?'var(--grape-60)':'var(--cloud-20)'}">
+            <span class="option-emoji">${a.opts[i].emoji}</span>
+            <div class="option-content"><span class="option-label">${a.opts[i].label}</span>
+            <div class="result-bar-track"><div class="result-bar-fill${win?' winner':''}" id="rbar-${i}" style="width:0"></div></div></div>
+            <span class="result-percent">${pct}%</span></div>`;
+        }
+        resultHtml = `<div class="card"><div class="options">${opts}</div></div>`;
+      } else if (act === "question") {
+        resultHtml = `<div class="card" style="text-align:center"><div class="question-text" style="font-size:16px">"${kidAns}"</div></div>`;
+      }
+
+      const oldStreak = streak - 1;
+
+      render(`
+        <div class="big-emoji">${emoji}</div>
+        <div class="big-title">${act==="question" ? "Great answer!" : `You picked ${label}!`}</div>
+        <div class="celeb-streak" id="celeb-streak" style="position:relative">
+          <div class="celeb-streak-glow" id="streak-glow"></div>
+          <div class="celeb-streak-fire">🔥</div>
+          <div class="celeb-streak-num" id="streak-num">${oldStreak}</div>
+          <div class="celeb-streak-label">day streak</div>
+        </div>
+        <div class="celeb-points" id="celeb-points">
+          <div class="celeb-points-icon">⭐</div>
+          <div class="celeb-points-num">+2</div>
+          <div class="celeb-points-label">Dojo Points</div>
+          <div class="celeb-points-total">${points} total</div>
+        </div>
+        <div class="celeb-result" id="celeb-result">
+          ${resultHtml}
+          <div class="class-line" style="margin-top:8px">${DAYS[dayIdx].classmates} of your classmates did this today!</div>
+        </div>
+      `);
+
+      // Phase 1: Streak ticks up (800ms delay)
+      later(() => {
+        const el = document.getElementById("celeb-streak");
+        if (el) el.classList.add("show");
+        later(() => {
+          const numEl = document.getElementById("streak-num");
+          const glowEl = document.getElementById("streak-glow");
+          if (numEl) {
+            numEl.style.animation = "countUp 0.4s ease-out";
+            numEl.textContent = streak;
+          }
+          if (glowEl) glowEl.classList.add("pulse");
+        }, 500);
+      }, 600);
+
+      // Phase 2: Points pop in (1600ms delay)
+      later(() => {
+        const el = document.getElementById("celeb-points");
+        if (el) el.classList.add("show");
+        boom();
+      }, 1500);
+
+      // Phase 3: Results slide in (2400ms delay)
+      later(() => {
+        const el = document.getElementById("celeb-result");
+        if (el) el.classList.add("show");
+        if (act === "wyr") {
+          later(() => {
+            const total = a.opts.reduce((s,o)=>s+o.votes,0)+1;
+            for (let i = 0; i < a.opts.length; i++) {
+              const adj = a.opts[i].votes+(kidAns===i?1:0);
+              const bar = document.getElementById("rbar-"+i);
+              if (bar) bar.style.width = Math.round(adj/total*100)+"%";
+            }
+          }, 100);
+        }
+      }, 2400);
+
+      // Phase 4: Transition to video prompt
+      later(() => showVideoPrompt(), 4200);
+    }
+
+    // ========================================
+    // VIDEO RECORDING FLOW
+    // ========================================
+    function showVideoPrompt() {
+      clearTimers();
+      const a = getAct();
+      let whatPicked = "";
+      if (act === "wyr") whatPicked = a.opts[kidAns].label;
+      else if (act === "mood") whatPicked = a.moods[kidAns].label;
+      else whatPicked = "your answer";
+
+      render(`
+        <div class="vid-camera" id="vid-camera" style="aspect-ratio:3/4">
+          <div class="vid-camera-bg"></div>
+          <div class="vid-camera-face">👧</div>
+          <div class="vid-prompt-overlay" id="vid-prompt-overlay">
+            <div class="vid-prompt-overlay-text">Tell your parent why you picked ${whatPicked}!</div>
+          </div>
+          <div class="vid-timer" id="vid-timer" style="opacity:0">0:15</div>
+          <div class="vid-progress" id="vid-progress" style="width:0%"></div>
+          <div id="vid-bottom-controls" style="position:absolute;bottom:14px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:6px;z-index:4">
+            <div class="vid-record-circle" id="vid-rec-btn" onclick="startVideoRecording()"><div class="vid-record-circle-inner" id="vid-rec-inner"></div></div>
+            <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.8)" id="vid-rec-hint">Tap to record</div>
+          </div>
+        </div>
+        <button class="vid-skip-btn" onclick="skipVideo()">Skip for now</button>
+      `);
+    }
+
+    function skipVideo() {
+      kidVideoRecorded = false;
+      if (handedPhone) { showHandBack(); }
+      else { showKidNext(); }
+    }
+
+    let vidCountdown = 15;
+    let vidInterval = null;
+
+    function startVideoRecording() {
+      vidCountdown = 15;
+      const overlay = document.getElementById("vid-prompt-overlay");
+      if (overlay) overlay.style.opacity = "0";
+      const timer = document.getElementById("vid-timer");
+      if (timer) timer.style.opacity = "1";
+      const hint = document.getElementById("vid-rec-hint");
+      if (hint) hint.textContent = "Tap to stop";
+      const inner = document.getElementById("vid-rec-inner");
+      if (inner) { inner.style.borderRadius = "4px"; inner.style.width = "18px"; inner.style.height = "18px"; }
+      const btn = document.getElementById("vid-rec-btn");
+      if (btn) btn.setAttribute("onclick", "stopVideoRecording()");
+      const camera = document.getElementById("vid-camera");
+      if (camera) {
+        const dot = document.createElement("div"); dot.className = "vid-rec-dot";
+        const lbl = document.createElement("div"); lbl.className = "vid-rec-label"; lbl.textContent = "REC";
+        camera.appendChild(dot); camera.appendChild(lbl);
+      }
+
+      vidInterval = setInterval(() => {
+        vidCountdown--;
+        const el = document.getElementById("vid-timer");
+        const bar = document.getElementById("vid-progress");
+        if (el) el.textContent = "0:" + String(vidCountdown).padStart(2, "0");
+        if (bar) bar.style.width = ((15 - vidCountdown) / 15 * 100) + "%";
+        if (vidCountdown <= 0) {
+          stopVideoRecording();
+        }
+      }, 1000);
+    }
+
+    function stopVideoRecording() {
+      if (vidInterval) { clearInterval(vidInterval); vidInterval = null; }
+      kidVideoRecorded = true;
+      showVideoPreview();
+    }
+
+    function showVideoPreview() {
+      clearTimers();
+      const a = getAct();
+      let caption = "";
+      if (act === "wyr") caption = `"I picked ${a.opts[kidAns].label} because..."`;
+      else if (act === "mood") caption = `"I'm feeling ${a.moods[kidAns].label} because..."`;
+      else caption = `"Here's why I said that..."`;
+
+      render(`
+        <div class="vid-preview" style="position:relative">
+          <div class="vid-camera-bg"></div>
+          <div class="vid-preview-face">👧</div>
+          <div class="vid-preview-badge">0:${String(15 - vidCountdown || 15).padStart(2, "0")} recorded</div>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:var(--cloud-90);text-align:center;margin-top:4px">${caption}</div>
+        <button class="primary-btn" onclick="sendVideo()">Send to parent 💌</button>
+        <div style="display:flex;gap:8px;width:100%">
+          <button class="secondary-btn" onclick="startVideoRecording()" style="flex:1">Re-record</button>
+          <button class="secondary-btn" onclick="skipVideo()" style="flex:1">Don't send</button>
+        </div>
+      `);
+    }
+
+    function sendVideo() {
+      clearTimers();
+      render(`
+        <div class="big-emoji" style="animation:popIn 0.5s ease-out">💌</div>
+        <div class="big-title">Video sent!</div>
+        <div class="vid-sent-card">
+          <div class="vid-sent-title">Your parent will love this!</div>
+          <div class="vid-sent-sub">They'll see your video when they play</div>
+        </div>
+      `);
+      boom();
+      if (handedPhone) {
+        later(() => showHandBack(), 2200);
+      } else {
+        later(() => showKidNext(), 2200);
+      }
+    }
+
+    function showHandBack() {
+      render(`
+        <div class="handback-card">
+          <div class="handback-emoji">📱</div>
+          <div class="handback-title">Hand back to your parent!</div>
+          <div class="handback-text">Don't peek — they're going to try to guess what you picked!</div>
+        </div>
+        <button class="primary-btn" onclick="returnToParent()">I'm the parent — continue →</button>
+      `);
+    }
+
+    function returnToParent() {
+      handedPhone = false;
+      view = "parent";
+      document.querySelectorAll("[id^=tab-]").forEach(e => { if(["tab-kid","tab-parent","tab-notif"].includes(e.id)) e.classList.remove("active"); });
+      document.getElementById("tab-parent").classList.add("active");
+      showParentPredict();
+    }
+
+    function showKidNext() {
+      const nextAct = ACT_ORDER[(ACT_ORDER.indexOf(act)+1) % ACT_ORDER.length];
+      const nextLabel = ACT_META[nextAct].pill;
+      render(`
+        <div class="accent-card">
+          <div class="accent-card-emoji">🤔</div>
+          <div class="accent-card-title">Now it's your parent's turn!</div>
+          <div class="accent-card-text">They'll try to guess what you picked.<br>Think they know you well enough?</div>
+        </div>
+        <div class="tomorrow-card">
+          <div class="tomorrow-label">🔥 Keep your streak going</div>
+          <div class="tomorrow-text">Come back tomorrow!</div>
+          <div class="tomorrow-sub">Try ${nextLabel} next time</div>
+        </div>
+        <div class="class-line" style="color:var(--grape-60);font-weight:700;cursor:pointer" onclick="switchView('parent')">
+          Switch to Parent View →
+        </div>
+      `);
+    }
+
+    // Kid sees parent's guess (completing the loop)
+    function showKidReveal() {
+      clearTimers();
+      const a = getAct();
+      let kidLabel, parentLabel, isMatch;
+      if (act === "wyr") {
+        kidLabel = a.opts[kidAns].emoji + " " + a.opts[kidAns].label;
+        parentLabel = (typeof parentAns === "number") ? a.opts[parentAns].emoji + " " + a.opts[parentAns].label : "🎉 Celebrated!";
+        isMatch = kidAns === parentAns;
+      } else if (act === "mood") {
+        kidLabel = a.moods[kidAns].emoji + " " + a.moods[kidAns].label;
+        parentLabel = (typeof parentAns === "number") ? a.moods[parentAns].emoji + " " + a.moods[parentAns].label : "🎉 Celebrated!";
+        isMatch = kidAns === parentAns;
+      } else {
+        kidLabel = '"' + kidAns + '"';
+        parentLabel = (typeof parentAns === "string" && parentAns !== "celebrate") ? '"' + parentAns + '"' : "🎉 Celebrated!";
+        isMatch = false;
+      }
+
+      const isCelebrate = parentAns === "celebrate";
+      let badgeHtml = "";
+      if (isCelebrate) {
+        badgeHtml = `<div class="result-badge pop match">🎉 Your parent celebrated you!</div>`;
+      } else if (act === "question") {
+        badgeHtml = `<div class="result-badge pop match">💬 Great answers, both of you!</div>`;
+      } else {
+        badgeHtml = isMatch
+          ? `<div class="result-badge pop match">✅ They know you well!</div>`
+          : `<div class="result-badge pop miss">😄 You surprised them!</div>`;
+      }
+
+      render(`
+        <div class="big-title">Your parent played! 🎉</div>
+        <div class="big-subtitle">${isCelebrate ? "They sent you a celebration!" : "Did they guess what you picked?"}</div>
+        <div class="card">
+          <div class="reveal-row show"><div class="reveal-avatar kid">👧</div><span class="reveal-name">You</span><span class="reveal-answer">${kidLabel}</span></div>
+          <div class="reveal-row show-delay${isMatch?' match':''}" style="margin-top:8px"><div class="reveal-avatar parent">👩</div><span class="reveal-name">Mom</span><span class="reveal-answer">${parentLabel}</span></div>
+          <div style="text-align:center;margin-top:14px">${badgeHtml}</div>
+        </div>
+        <div class="tomorrow-card">
+          <div class="tomorrow-label">🔥 ${streak}-day streak</div>
+          <div class="tomorrow-text">Come back tomorrow!</div>
+        </div>
+      `);
+      later(() => boom(), 900);
+    }
+
+    // ========================================
+    // PARENT FLOW
+    // ========================================
+    function showParentWaiting() {
+      clearTimers();
+      render(`
+        <div class="big-emoji">⏳</div>
+        <div class="big-title">Waiting for Emma</div>
+        <div class="big-subtitle">She hasn't done today's Daily Dojo Moment yet</div>
+        <div class="streak-badge">🔥 ${streak}-day streak</div>
+        <button class="primary-btn" id="nudge-btn" onclick="doNudge()">Send a nudge 💬</button>
+        <button class="secondary-btn" onclick="handToKid()">Hand phone to Emma 📱</button>
+      `);
+    }
+
+    function handToKid() {
+      handedPhone = true;
+      view = "kid";
+      document.querySelectorAll("[id^=tab-]").forEach(e => { if(["tab-kid","tab-parent","tab-notif"].includes(e.id)) e.classList.remove("active"); });
+      document.getElementById("tab-kid").classList.add("active");
+      showKidQuestion();
+    }
+
+    function showParentPredict() {
+      clearTimers();
+      const a = getAct();
+      let optHtml = "";
+      if (act === "wyr") {
+        for (let i=0;i<a.opts.length;i++)
+          optHtml += `<button class="option-btn" onclick="parentPick(${i})"><span class="option-emoji">${a.opts[i].emoji}</span><span class="option-label">${a.opts[i].label}</span></button>`;
+        optHtml = `<div class="options">${optHtml}</div>`;
+      } else if (act === "mood") {
+        let g = "";
+        for (let i=0;i<a.moods.length;i++)
+          g += `<button class="mood-btn" onclick="parentPick(${i})"><span class="mood-emoji">${a.moods[i].emoji}</span><span class="mood-label">${a.moods[i].label}</span></button>`;
+        optHtml = `<div class="mood-grid">${g}</div>`;
+      } else {
+        optHtml = `<textarea class="text-input" id="parent-input" placeholder="Type your answer..." rows="3"></textarea>
+          <button class="primary-btn" onclick="parentSubmitText()" style="margin-top:8px">Share my answer ✨</button>`;
+      }
+      const videoTeaser = kidVideoRecorded
+        ? `<div style="text-align:center;font-size:11px;color:var(--grape-60);font-weight:700;margin-top:-4px">🎥 Emma recorded a video — see it after you guess!</div>`
+        : "";
+
+      render(`
+        <div><div class="header-label">Daily Dojo Moment</div><div class="header-title">Emma answered! 🎉</div></div>
+        <div class="streak-badge">🔥 ${streak}-day streak</div>
+        ${videoTeaser}
+        <div class="card" style="text-align:center">
+          <div style="font-size:40px;margin-bottom:8px">🤔</div>
+          <div class="question-text" style="font-size:17px;margin-bottom:4px">Guess what Emma picked</div>
+          <div style="font-size:13px;color:var(--cloud-60);margin-bottom:12px">${a.parentQ || a.q}</div>
+          ${optHtml}
+        </div>
+        <button class="secondary-btn" onclick="doCelebrate()">Just celebrate 🎉</button>
+      `);
+    }
+
+    function parentPick(idx) {
+      if (parentAns !== null) return;
+      parentAns = idx;
+      showParentReveal();
+    }
+    function parentSubmitText() {
+      const input = document.getElementById("parent-input");
+      if (!input || !input.value.trim()) return;
+      parentAns = input.value.trim();
+      showParentReveal();
+    }
+
+    function showParentReveal() {
+      clearTimers();
+      const a = getAct();
+      let kidLabel, parentLabel, isMatch;
+      if (act === "wyr") {
+        kidLabel = a.opts[kidAns].emoji + " " + a.opts[kidAns].label;
+        parentLabel = a.opts[parentAns].emoji + " " + a.opts[parentAns].label;
+        isMatch = kidAns === parentAns;
+      } else if (act === "mood") {
+        kidLabel = a.moods[kidAns].emoji + " " + a.moods[kidAns].label;
+        parentLabel = a.moods[parentAns].emoji + " " + a.moods[parentAns].label;
+        isMatch = kidAns === parentAns;
+      } else {
+        kidLabel = '"' + kidAns + '"';
+        parentLabel = '"' + parentAns + '"';
+        isMatch = false;
+      }
+
+      const badgeClass = act==="question" ? "match" : (isMatch ? "match" : "miss");
+      const badgeText = act==="question" ? "💬 Great conversation starter!" : (isMatch ? "✅ You know your kid!" : "😄 Emma surprised you!");
+
+      render(`
+        <div class="big-title">The Reveal! ✨</div>
+        <div class="streak-badge">🔥 ${streak}-day streak</div>
+        <div class="card">
+          <div class="reveal-row show${isMatch?' match':''}"><div class="reveal-avatar kid">👧</div><span class="reveal-name">Emma</span><span class="reveal-answer">${kidLabel}</span></div>
+          <div class="reveal-row show-delay${isMatch?' match':''}" style="margin-top:8px"><div class="reveal-avatar parent">👩</div><span class="reveal-name">You</span><span class="reveal-answer">${parentLabel}</span></div>
+          <div style="text-align:center;margin-top:14px"><div class="result-badge pop ${badgeClass}">${badgeText}</div></div>
+        </div>
+      `);
+      later(() => boom(), 900);
+      later(() => { kidVideoRecorded ? showParentVideoMessage() : showParentConvo(); }, 3500);
+    }
+
+    function showParentVideoMessage() {
+      clearTimers();
+      const a = getAct();
+      let caption = "";
+      if (act === "wyr") caption = `Emma explains why she picked <b>${a.opts[kidAns].label}</b>`;
+      else if (act === "mood") caption = `Emma shares why she's feeling <b>${a.moods[kidAns].label}</b>`;
+      else caption = `Emma explains her answer`;
+
+      render(`
+        <div class="big-title">Emma left you a video! 🎥</div>
+        <div class="vid-parent-card">
+          <div class="vid-parent-header">
+            <div class="vid-parent-avatar">👧</div>
+            <div style="flex:1"><div class="vid-parent-name">Emma</div><div class="vid-parent-meta">just now</div></div>
+          </div>
+          <div class="vid-parent-body" id="vid-parent-body">
+            <div class="vid-camera-bg"></div>
+            <div class="vid-parent-face">👧</div>
+            <div class="vid-preview-play" onclick="playParentVideo()"><div class="vid-preview-play-icon">▶</div></div>
+          </div>
+          <div class="vid-parent-caption">${caption}</div>
+        </div>
+        <button class="primary-btn" onclick="showParentConvo()">Continue →</button>
+      `);
+    }
+
+    function playParentVideo() {
+      const body = document.getElementById("vid-parent-body");
+      if (!body) return;
+      const existing = body.querySelector(".vid-playing-overlay");
+      if (existing) return;
+      const overlay = document.createElement("div");
+      overlay.className = "vid-playing-overlay";
+      overlay.innerHTML = `<div class="vid-playing-wave">
+        <div class="vid-playing-bar"></div><div class="vid-playing-bar"></div>
+        <div class="vid-playing-bar"></div><div class="vid-playing-bar"></div>
+        <div class="vid-playing-bar"></div></div>`;
+      body.appendChild(overlay);
+      const playBtn = body.querySelector(".vid-preview-play");
+      if (playBtn) playBtn.style.display = "none";
+      later(() => {
+        if (overlay.parentNode) overlay.remove();
+        if (playBtn) playBtn.style.display = "flex";
+      }, 4000);
+    }
+
+    function doCelebrate() {
+      parentAns = "celebrate";
+      const a = getAct();
+      let kidLabel;
+      if (act==="wyr") kidLabel = a.opts[kidAns].emoji+" "+a.opts[kidAns].label;
+      else if (act==="mood") kidLabel = a.moods[kidAns].emoji+" "+a.moods[kidAns].label;
+      else kidLabel = '"'+kidAns+'"';
+
+      render(`
+        <div class="big-emoji">🎉</div>
+        <div class="big-title">Emma will see your celebration!</div>
+        <div class="big-subtitle">She picked: ${kidLabel}</div>
+        <div class="streak-badge">🔥 ${streak}-day streak</div>
+      `);
+      boom();
+      later(() => { kidVideoRecorded ? showParentVideoMessage() : showParentConvo(); }, 2500);
+    }
+
+    function showParentConvo() {
+      const a = getAct();
+      render(`
+        <div class="convo-card">
+          <div class="convo-label">💬 Dinner Table Question</div>
+          <div class="convo-text">${a.prompt}</div>
+        </div>
+        <div class="streak-badge">🔥 ${streak}-day streak</div>
+        <div class="tomorrow-card">
+          <div class="tomorrow-label">🔥 Keep the streak going</div>
+          <div class="tomorrow-text">Remind Emma to come back tomorrow!</div>
+          <div class="tomorrow-sub">You'll both earn more Dojo Points</div>
+        </div>
+        <div class="class-line" style="color:var(--grape-60);font-weight:700;cursor:pointer" onclick="switchView('kid')">
+          Switch to Kid View to see Emma's reaction →
+        </div>
+      `);
+    }
+
+    function doNudge() {
+      const btn = document.getElementById("nudge-btn");
+      btn.textContent = "Nudge sent! ✅"; btn.style.background = "var(--frog-60)";
+      later(() => { btn.textContent = "Send a nudge 💬"; btn.style.background = "var(--grape-60)"; }, 2000);
+    }
+
+    // ========================================
+    // NOTIFICATION VIEW
+    // ========================================
+    function showKidNotification() {
+      clearTimers();
+      const screen = document.querySelector(".iphone-screen");
+      const status = document.querySelector(".iphone-status");
+      screen.style.background = "#1a192d";
+      status.style.background = "transparent";
+      status.querySelector("span").style.color = "#fff";
+      status.querySelector("span:last-child").style.color = "#fff";
+      const app = document.getElementById("app");
+      app.style.padding = "0";
+      app.style.justifyContent = "stretch";
+      app.innerHTML = `<div style="flex:1;display:flex;flex-direction:column;background:#1a192d;animation:stageEnter 0.35s ease-out forwards">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(160deg,#2d1b69 0%,#1a192d 100%)">
+          <div style="font-size:42px;font-weight:800;color:#fff">3:47</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">Wednesday, February 5</div>
+        </div>
+        <div style="padding:10px">
+          <div class="notif-banner" onclick="switchView('kid')" style="cursor:pointer">
+            <div class="notif-icon">D</div>
+            <div class="notif-content">
+              <div class="notif-app">ClassDojo</div>
+              <div class="notif-text">Today's Daily Dojo Moment is ready! Can you fly or turn invisible? 🤔</div>
+              <div class="notif-time">now</div>
+            </div>
+          </div>
+        </div>
+        <div style="flex:0.3"></div>
+      </div>`;
+    }
+
+    function showNotification() {
+      clearTimers();
+      const screen = document.querySelector(".iphone-screen");
+      const status = document.querySelector(".iphone-status");
+      screen.style.background = "#1a192d";
+      status.style.background = "transparent";
+      status.querySelector("span").style.color = "#fff";
+      status.querySelector("span:last-child").style.color = "#fff";
+      const app = document.getElementById("app");
+      app.style.padding = "0";
+      app.style.justifyContent = "stretch";
+      app.innerHTML = `<div style="flex:1;display:flex;flex-direction:column;background:#1a192d;animation:stageEnter 0.35s ease-out forwards">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(160deg,#2d1b69 0%,#1a192d 100%)">
+          <div style="font-size:42px;font-weight:800;color:#fff">3:47</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px">Wednesday, February 5</div>
+        </div>
+        <div style="padding:10px;display:flex;flex-direction:column;gap:8px">
+          <div class="notif-banner" id="nbanner" onclick="switchView('parent')" style="cursor:pointer">
+            <div class="notif-icon">D</div>
+            <div class="notif-content"><div class="notif-app">ClassDojo</div><div class="notif-text" id="ntext">${NOTIFS[notifIdx]}</div><div class="notif-time">now</div></div>
+          </div>
+          <div style="text-align:center;padding:4px 0">
+            <button onclick="cycleNotif()" style="background:transparent;border:none;font-family:var(--font);font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);cursor:pointer">Next notification →</button>
+          </div>
+        </div>
+        <div style="flex:0.15"></div>
+      </div>`;
+    }
+    function cycleNotif() {
+      notifIdx = (notifIdx+1)%NOTIFS.length;
+      const b = document.getElementById("nbanner");
+      b.style.opacity = "0"; b.style.transform = "scale(0.96)";
+      later(() => {
+        document.getElementById("ntext").textContent = NOTIFS[notifIdx];
+        b.style.transition = "all 0.3s ease-out"; b.style.opacity = "1"; b.style.transform = "scale(1)";
+      }, 200);
+    }
+
+    // ========================================
+    // IN-APP ENTRY POINT VIEW
+    // ========================================
+    function showInApp() {
+      clearTimers();
+      const app = document.getElementById("app");
+      app.style.padding = "0";
+      app.style.justifyContent = "stretch";
+      const a = getAct();
+      const q = DAYS[dayIdx].wyr;
+      app.innerHTML = `<div class="home-feed" style="animation:stageEnter 0.35s ease-out forwards">
+        <div class="home-nav">
+          <div class="home-avatar">👩</div>
+          <div class="home-nav-icon">📅</div>
+          <div class="home-nav-icon">🖼</div>
+          <button class="home-upgrade">Upgrade</button>
+        </div>
+        <div class="home-tabs">
+          <div class="home-tab on"><div class="home-tab-icon">📰</div>Story</div>
+          <div class="home-tab"><div class="home-tab-icon">🎓</div>Tutors</div>
+          <div class="home-tab"><div class="home-tab-icon">📖</div>Reading</div>
+          <div class="home-tab"><div class="home-tab-icon">📸</div>Memories</div>
+        </div>
+        <div class="home-scroll">
+          <div class="dm-feed-card" onclick="switchView('parent')">
+            <div class="dm-feed-top">
+              <div class="dm-feed-icon">✨</div>
+              <div class="dm-feed-label">
+                <div class="dm-feed-label-title">Daily Dojo Moment</div>
+                <div class="dm-feed-label-sub">Emma answered! Tap to play →</div>
+              </div>
+              <div class="dm-feed-streak">🔥 ${streak}</div>
+            </div>
+            <div class="dm-feed-q">${q.q}</div>
+            <div class="dm-feed-opts">
+              <div class="dm-feed-opt">${q.opts[0].emoji} ${q.opts[0].label}</div>
+              <div class="dm-feed-opt">${q.opts[1].emoji} ${q.opts[1].label}</div>
+            </div>
+            <div class="dm-feed-cta">Guess what Emma picked →</div>
+          </div>
+          <div class="feed-post">
+            <div class="feed-post-header">
+              <div class="feed-post-avatar">👩‍🏫</div>
+              <div class="feed-post-info"><div class="feed-post-name">Ms. Wheeler</div><div class="feed-post-meta">Dojo Elementary · today</div></div>
+            </div>
+            <div class="feed-post-img" style="background:linear-gradient(135deg,#e8d5b7 0%,#c9a87c 100%);font-size:32px">📸</div>
+            <div class="feed-post-text">Please remember all important documents and forms before the upcoming Open House!</div>
+            <div class="feed-post-actions"><span>❤️ 9 likes</span><span>💬 12 comments</span></div>
+          </div>
+          <div class="feed-post">
+            <div class="feed-post-header">
+              <div class="feed-post-avatar">👩‍🏫</div>
+              <div class="feed-post-info"><div class="feed-post-name">Ms. Wheeler</div><div class="feed-post-meta">Dojo Elementary · yesterday</div></div>
+            </div>
+            <div class="feed-post-img" style="background:linear-gradient(135deg,#d4e8d4 0%,#a8c9a8 100%);font-size:32px">🎨</div>
+            <div class="feed-post-text">What a wonderful art day! The kids created amazing self-portraits.</div>
+            <div class="feed-post-actions"><span>❤️ 15 likes</span><span>💬 8 comments</span></div>
+          </div>
+        </div>
+        <div class="home-bottom-bar">
+          <div class="home-btab on"><div class="home-btab-icon">📰</div>Story</div>
+          <div class="home-btab"><div class="home-btab-icon">👶</div>Kids</div>
+          <div class="home-btab"><div class="home-btab-icon">⭐</div>Points</div>
+          <div class="home-btab"><div class="home-btab-icon">💬</div>Messages</div>
+          <div class="home-btab"><div class="home-btab-icon">📚</div>Learning</div>
+        </div>
+      </div>`;
+    }
+
+    // ========================================
+    // KID IN-APP VIEW (Student App)
+    // ========================================
+    function showKidInApp() {
+      clearTimers();
+      const app = document.getElementById("app");
+      app.style.padding = "0";
+      app.style.justifyContent = "stretch";
+      const q = DAYS[dayIdx].wyr;
+      const hasAnswered = kidAns !== null;
+
+      let dmCardContent = "";
+      if (hasAnswered) {
+        dmCardContent = `
+          <div class="stu-dm-top">
+            <div class="stu-dm-icon">✨</div>
+            <div class="stu-dm-label">
+              <div class="stu-dm-label-title">Daily Dojo Moment</div>
+              <div class="stu-dm-label-sub">Done for today!</div>
+            </div>
+            <div class="stu-dm-streak">🔥 ${streak}</div>
+          </div>
+          <div style="text-align:center;padding:6px 0">
+            <div style="font-size:28px">✅</div>
+            <div style="font-size:12px;font-weight:700;color:var(--frog-60);margin-top:4px">Great job! Come back tomorrow</div>
+            <div style="font-size:10px;color:var(--cloud-60);margin-top:2px">You earned +2 Dojo Points today</div>
+          </div>`;
+      } else {
+        dmCardContent = `
+          <div class="stu-dm-top">
+            <div class="stu-dm-icon">✨</div>
+            <div class="stu-dm-label">
+              <div class="stu-dm-label-title">Daily Dojo Moment</div>
+              <div class="stu-dm-label-sub">New question today!</div>
+            </div>
+            <div class="stu-dm-streak">🔥 ${streak}</div>
+          </div>
+          <div class="stu-dm-q">${q.q}</div>
+          <div class="stu-dm-opts">
+            <div class="stu-dm-opt">${q.opts[0].emoji} ${q.opts[0].label}</div>
+            <div class="stu-dm-opt">${q.opts[1].emoji} ${q.opts[1].label}</div>
+          </div>
+          <div class="stu-dm-cta">Answer now! →</div>`;
+      }
+
+      app.innerHTML = `<div class="stu-feed" style="animation:stageEnter 0.35s ease-out forwards">
+        <div class="stu-header">
+          <div class="stu-logo">D</div>
+          <div class="stu-header-spacer"></div>
+          <div class="stu-toggle">
+            <button class="stu-toggle-btn"><span class="stu-toggle-icon">🏠</span> Home</button>
+            <button class="stu-toggle-btn on"><span class="stu-toggle-icon">🍎</span> School</button>
+          </div>
+          <div class="stu-avatar-wrap">🐲</div>
+        </div>
+        <div class="stu-scroll">
+          <div class="stu-points-card">
+            <div class="stu-points-avatar">🐲</div>
+            <div class="stu-points-info">
+              <div class="stu-points-name">Emma</div>
+              <div class="stu-points-sub">Ms. Wheeler's Class</div>
+            </div>
+            <div class="stu-points-badge">⭐ ${points}</div>
+          </div>
+          <div class="stu-dm-card" onclick="switchView('kid')">
+            ${dmCardContent}
+          </div>
+          <div class="stu-post">
+            <div class="stu-post-header">
+              <div class="stu-post-avatar">👩‍🏫</div>
+              <div class="stu-post-info"><div class="stu-post-name">Ms. Wheeler</div><div class="stu-post-meta">today</div></div>
+            </div>
+            <div class="stu-post-img" style="background:linear-gradient(135deg,#e8d5b7 0%,#c9a87c 100%)">📸</div>
+            <div class="stu-post-text">Don't forget — Open House is next week! Bring your parents!</div>
+            <div class="stu-post-actions"><span>❤️ 12</span><span>💬 5</span></div>
+          </div>
+          <div class="stu-post">
+            <div class="stu-post-header">
+              <div class="stu-post-avatar">👩‍🏫</div>
+              <div class="stu-post-info"><div class="stu-post-name">Ms. Wheeler</div><div class="stu-post-meta">yesterday</div></div>
+            </div>
+            <div class="stu-post-img" style="background:linear-gradient(135deg,#d4e8d4 0%,#a8c9a8 100%)">🎨</div>
+            <div class="stu-post-text">Amazing art projects today! Everyone did such a great job on their self-portraits.</div>
+            <div class="stu-post-actions"><span>❤️ 18</span><span>💬 9</span></div>
+          </div>
+          <div class="stu-post">
+            <div class="stu-post-header">
+              <div class="stu-post-avatar">👩‍🏫</div>
+              <div class="stu-post-info"><div class="stu-post-name">Ms. Wheeler</div><div class="stu-post-meta">2 days ago</div></div>
+            </div>
+            <div class="stu-post-text" style="padding-top:12px">Great reading group discussion today! Keep up the good work, everyone. 📚</div>
+            <div class="stu-post-actions"><span>❤️ 8</span><span>💬 3</span></div>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    // ========================================
+    // VIEW / ACTIVITY SWITCHING
+    // ========================================
+    const TAB_MAP = {kid:"tab-kid",parent:"tab-parent",notification:"tab-notif",kidinapp:"tab-kidinapp",inapp:"tab-inapp"};
+    function switchView(v) {
+      view = v; clearTimers();
+      document.querySelectorAll("[id^=tab-]").forEach(e => { if(Object.values(TAB_MAP).includes(e.id)) e.classList.remove("active"); });
+      document.getElementById(TAB_MAP[v]).classList.add("active");
+      renderCurrentView();
+    }
+
+    function switchActivityInApp(a) {
+      if (a === act) return;
+      act = a; kidAns = null; parentAns = null; handedPhone = false; kidVideoRecorded = false; clearTimers();
+      renderCurrentView();
+    }
+
+    function switchActivity(a) {
+      act = a; kidAns = null; parentAns = null; handedPhone = false; kidVideoRecorded = false; clearTimers();
+      renderCurrentView();
+    }
+
+    function goToDay(idx) {
+      dayIdx = idx; act = "wyr"; kidAns = null; parentAns = null; notifIdx = 0; handedPhone = false; kidVideoRecorded = false;
+      streak = 3 + idx; points = 22 + (idx * 2);
+      clearTimers(); stopWalk();
+      document.querySelectorAll("[id^=day-]").forEach(e => e.classList.remove("active"));
+      document.getElementById("day-" + (idx + 1)).classList.add("active");
+      switchView("kid");
+    }
+
+    function resetScreenChrome() {
+      const screen = document.querySelector(".iphone-screen");
+      const status = document.querySelector(".iphone-status");
+      screen.style.background = "var(--grape-10)";
+      status.style.background = "var(--grape-10)";
+      status.querySelector("span").style.color = "var(--cloud-90)";
+      status.querySelector("span:last-child").style.color = "var(--cloud-90)";
+    }
+
+    function renderCurrentView() {
+      resetScreenChrome();
+      const screen = document.querySelector(".iphone-screen");
+      const status = document.querySelector(".iphone-status");
+      if (view === "inapp" || view === "kidinapp") {
+        screen.style.background = "var(--white)";
+        status.style.background = "var(--white)";
+      }
+      if (view === "kid") {
+        if (parentAns !== null && kidAns !== null) showKidReveal();
+        else if (kidAns !== null) showKidNext();
+        else showKidQuestion();
+      } else if (view === "parent") {
+        if (parentAns !== null) showParentConvo();
+        else if (kidAns !== null) showParentPredict();
+        else showParentWaiting();
+      } else if (view === "kidinapp") {
+        showKidInApp();
+      } else if (view === "inapp") {
+        showInApp();
+      } else {
+        showNotification();
+      }
+    }
+
+    function resetDemo() {
+      dayIdx = 0; kidAns = null; parentAns = null; streak = 3; points = 22; notifIdx = 0; act = "wyr"; handedPhone = false; kidVideoRecorded = false;
+      clearTimers(); stopWalk();
+      document.querySelectorAll("[id^=day-]").forEach(e => e.classList.remove("active"));
+      document.getElementById("day-1").classList.add("active");
+      renderCurrentView();
+    }
+
+    // ========================================
+    // WALKTHROUGH
+    // ========================================
+    const STEPS = [
+      { text: "The kid gets a push notification", sub: "A daily nudge brings them back to Dojo", do: () => { showKidNotification(); setTabs(""); }, ms: 3200 },
+      { text: "They tap and see today's Daily Dojo Moment", sub: "They can pick an activity or jump right in", do: () => { switchView("kid"); }, ms: 2800 },
+      { text: "They pick their answer — watch the celebration!", sub: "Streak ticks up, then points pop in — each reward gets its moment", do: () => kidPick(0), ms: 4500 },
+      { text: "Now they can record a quick video explaining why", sub: "15-second video → builds a treasure trove of memories for parents", do: () => showVideoPrompt(), ms: 3500 },
+      { text: "They record a message for their parent", sub: '"I picked fly because I want to see the whole world!"', do: () => { startVideoRecording(); later(() => stopVideoRecording(), 3000); }, ms: 4500 },
+      { text: "Video sent! The parent will see it after they guess", sub: "Video comes after the reveal — no spoilers!", do: () => sendVideo(), ms: 3000 },
+      { text: "Meanwhile, the parent gets a notification too...", sub: "The only touchpoint most parents need", do: () => switchView("notification"), ms: 3500 },
+      { text: "The parent taps and sees Emma has a video waiting", sub: '"Do I know my child?" is a powerful hook — guess first!', do: () => switchView("parent"), ms: 3200 },
+      { text: "The parent makes their guess...", sub: "2 taps — respects busy parents", do: () => parentPick(1), ms: 2500 },
+      { text: "The Reveal! Did they know their kid?", sub: "This is the magic moment ✨", do: () => {}, ms: 3800 },
+      { text: "Now the parent sees Emma's video message!", sub: "Hearing your kid explain their choice — this is the emotional payoff", do: () => showParentVideoMessage(), ms: 4500 },
+      { text: "A conversation starter bridges app → dinner table", sub: "Digital moment → real-world connection", do: () => showParentConvo(), ms: 3200 },
+      { text: "Later, the kid sees their parent played!", sub: "The loop is complete — both sides get a payoff", do: () => switchView("kid"), ms: 3500 },
+      { text: "That's the Daily Dojo Moment — a daily family ritual", sub: "Would You Rather · Mood Check · Table Topic + video memories", do: () => {}, ms: 3000 },
+    ];
+
+    function setTabs(active) {
+      document.querySelectorAll("[id^=tab-]").forEach(e => { if(Object.values(TAB_MAP).includes(e.id)) e.classList.remove("active"); });
+      if (active && TAB_MAP[active]) document.getElementById(TAB_MAP[active]).classList.add("active");
+    }
+    let wStep = 0, wTimer = null, wRunning = false;
+
+    function toggleWalkthrough() { wRunning ? stopWalk() : startWalk(); }
+    function startWalk() {
+      wRunning = true; wStep = 0;
+      dayIdx = 0; kidAns = null; parentAns = null; streak = 3; points = 22; act = "wyr"; notifIdx = 0; handedPhone = false; kidVideoRecorded = false;
+      document.querySelectorAll("[id^=day-]").forEach(e => e.classList.remove("active"));
+      document.getElementById("day-1").classList.add("active");
+      document.getElementById("wbtn").classList.add("running"); document.getElementById("wbtn").textContent = "⏹";
+      runStep();
+    }
+    function stopWalk() {
+      wRunning = false; if(wTimer) clearTimeout(wTimer);
+      document.getElementById("wbar").classList.remove("visible");
+      document.getElementById("wbtn").classList.remove("running"); document.getElementById("wbtn").textContent = "▶ Walk";
+    }
+    function runStep() {
+      if(!wRunning||wStep>=STEPS.length){stopWalk();return;}
+      const s = STEPS[wStep];
+      document.getElementById("wtext").textContent = s.text;
+      document.getElementById("wsub").textContent = s.sub;
+      const dots = document.getElementById("wdots"); dots.innerHTML = "";
+      for(let i=0;i<STEPS.length;i++){const d=document.createElement("div");d.className="wdot"+(i===wStep?" on":"");dots.appendChild(d);}
+      document.getElementById("wbar").classList.add("visible");
+      s.do();
+      wTimer = setTimeout(()=>{wStep++;runStep();}, s.ms||2000);
+    }
+
+    // === INIT ===
+    showKidQuestion();
+  </script>
+</body>
+</html>
